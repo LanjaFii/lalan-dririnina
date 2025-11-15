@@ -1,8 +1,21 @@
-import { initScene, animateScene, resizeRenderer } from "@/scene";
+import '@/style.css'
+import { GameScene } from '@/scenes/GameScene'
 
-const { renderer, camera, scene } = initScene();
+class Game {
+  private scene: GameScene
+  
+  constructor() {
+    this.scene = new GameScene()
+    this.animate()
+  }
 
-document.body.appendChild(renderer.domElement);
-animateScene(renderer, scene, camera);
+  private animate = (): void => {
+    requestAnimationFrame(this.animate)
+    this.scene.update()
+  }
+}
 
-window.addEventListener("resize", () => resizeRenderer(renderer, camera));
+// Initialisation quand la page est chargée
+window.addEventListener('DOMContentLoaded', () => {
+  new Game()
+})

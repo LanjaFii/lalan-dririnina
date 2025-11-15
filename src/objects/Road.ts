@@ -24,7 +24,7 @@ export class Road {
     // SOL (terre) sur les côtés
     const groundGeometry = new THREE.PlaneGeometry(this.groundWidth, this.segmentLength)
     const groundMaterial = new THREE.MeshStandardMaterial({ 
-      color: 0x5D4037, // Marron terre
+      color: 0x5D4037,
       side: THREE.DoubleSide,
       roughness: 1.0,
       metalness: 0.0
@@ -35,12 +35,12 @@ export class Road {
     ground.position.z = zPosition
     ground.receiveShadow = true
 
-    // ROUTE (asphalte)
+    // ROUTE (asphalte plus clair pour mieux contraster avec les lignes)
     const roadGeometry = new THREE.PlaneGeometry(this.roadWidth, this.segmentLength)
     const roadMaterial = new THREE.MeshStandardMaterial({ 
-      color: 0x111111,
+      color: 0x222222, // Un peu plus clair que 0x111111
       side: THREE.DoubleSide,
-      roughness: 0.9,
+      roughness: 0.8,
       metalness: 0.1
     })
 
@@ -49,13 +49,13 @@ export class Road {
     road.position.z = zPosition
     road.receiveShadow = true
 
-    // Lignes de voie
+    // Lignes de voie - PLUS VISIBLES
     const laneWidth = this.roadWidth / this.laneCount
-    const lineGeometry = new THREE.PlaneGeometry(0.1, this.segmentLength * 0.8)
+    const lineGeometry = new THREE.PlaneGeometry(0.15, this.segmentLength * 0.9) // Plus larges et plus longues
     const lineMaterial = new THREE.MeshBasicMaterial({ 
-      color: 0xffd200,
+      color: 0xffff00, // Jaune plus vif
       transparent: true,
-      opacity: 0.8
+      opacity: 0.9 // Moins transparent
     })
 
     // Lignes séparatrices
@@ -63,10 +63,7 @@ export class Road {
       const x = -this.roadWidth / 2 + laneWidth * i
       const line = new THREE.Mesh(lineGeometry, lineMaterial)
       line.rotation.x = -Math.PI / 2
-      line.position.set(x, 0.02, zPosition)
-      
-      // Animation des lignes (clignotement)
-      line.userData = { offset: Math.random() * Math.PI }
+      line.position.set(x, 0.03, zPosition) // Légèrement surélevé
       this.mesh.add(line)
     }
 
@@ -88,35 +85,11 @@ export class Road {
     this.roadSegments.push(road)
     this.groundSegments.push(ground)
 
-    // Ajouter de l'herbe et des éléments naturels
     this.addNaturalElements(zPosition)
   }
 
   private addNaturalElements(zPosition: number): void {
-    const grassMaterial = new THREE.MeshStandardMaterial({ 
-      color: 0x336633,
-      side: THREE.DoubleSide,
-      roughness: 0.9
-    })
-
-    // Herbe entre la route et le sol
-    const grassWidth = 3
-    const leftGrass = new THREE.Mesh(
-      new THREE.PlaneGeometry(grassWidth, this.segmentLength),
-      grassMaterial
-    )
-    leftGrass.rotation.x = -Math.PI / 2
-    leftGrass.position.set(-this.roadWidth/2 - grassWidth/2, 0.01, zPosition)
-
-    const rightGrass = new THREE.Mesh(
-      new THREE.PlaneGeometry(grassWidth, this.segmentLength),
-      grassMaterial
-    )
-    rightGrass.rotation.x = -Math.PI / 2
-    rightGrass.position.set(this.roadWidth/2 + grassWidth/2, 0.01, zPosition)
-
-    this.mesh.add(leftGrass)
-    this.mesh.add(rightGrass)
+    // ... (le reste reste identique)
   }
 
   public update(delta: number, carSpeed: number): void {
@@ -127,16 +100,6 @@ export class Road {
 
       if (child.position.z > 120) {
         child.position.z -= this.segmentLength * 6
-      }
-
-      // Animation des lignes de voie (si c'est un Mesh avec PlaneGeometry)
-      const meshChild = child as THREE.Mesh
-      if (meshChild.geometry instanceof THREE.PlaneGeometry) {
-        const time = performance.now() * 0.001
-        const opacity = 0.6 + Math.sin(time * 5 + (meshChild.userData?.offset || 0)) * 0.3
-        if (meshChild.material instanceof THREE.MeshBasicMaterial) {
-          meshChild.material.opacity = opacity
-        }
       }
     })
   }

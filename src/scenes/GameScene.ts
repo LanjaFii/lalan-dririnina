@@ -19,14 +19,13 @@ export class GameScene {
 
   private init(): void {
     this.scene = new THREE.Scene()
-    this.scene.fog = new THREE.Fog(0x0b0a12, 10, 300)
+    // Fog plus léger pour mieux voir les lignes
+    this.scene.fog = new THREE.Fog(0x0b0a12, 30, 300)
     this.scene.background = new THREE.Color(0x0b1020)
 
-    // Camera première personne (dans la voiture)
-    this.camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000)
-    this.camera.position.set(0, 0.8, 0.3)
-    this.camera.rotation.x = -0.1
-
+    // Camera première personne avec meilleur champ de vision
+    this.camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.1, 1000)
+    
     this.renderer = new THREE.WebGLRenderer({ 
       antialias: true,
       powerPreference: "high-performance"
@@ -49,40 +48,41 @@ export class GameScene {
     this.scene.add((this.road as any).mesh)
     this.scene.add((this.car as any).mesh)
 
-    // Attacher la caméra à la voiture
-    this.car.mesh.add(this.camera)
-
-    // Phares avec effet de lumière plus réaliste
+    // IMPORTANT: Ne PAS attacher la caméra au mesh de la voiture
+    // La caméra reste indépendante mais suit la voiture manuellement
+    this.camera.position.set(0, 0.6, 0) // Position de vue première personne
+    
+    // Phares comme source de lumière principale
     const headlights = new THREE.SpotLight(0xffffcc, 3)
-    headlights.angle = Math.PI / 8
-    headlights.penumbra = 0.5
+    headlights.angle = Math.PI / 5
+    headlights.penumbra = 0.4
     headlights.decay = 1
     headlights.distance = 100
     headlights.castShadow = true
-    headlights.position.set(0, 0.5, 0.5)
-    headlights.target.position.set(0, 0.3, -10)
+    headlights.position.set(0, 0.5, 1) // Position relative à la scène
+    headlights.target.position.set(0, 0.3, -50)
     
-    this.car.mesh.add(headlights)
-    this.car.mesh.add(headlights.target)
+    this.scene.add(headlights)
+    this.scene.add(headlights.target)
 
     this.creatureManager = new CreatureManager(this.scene, (this.road as any).roadWidth)
   }
 
   private setupLighting(): void {
-    // Ambiance nuit profonde
-    const ambientLight = new THREE.AmbientLight(0x444466, 0.15)
+    // Ambiance nuit - éclairage plus fort pour mieux voir la route
+    const ambientLight = new THREE.AmbientLight(0x556677, 0.25)
     this.scene.add(ambientLight)
 
-    // Lune faible
-    const moonLight = new THREE.DirectionalLight(0x445588, 0.2)
+    // Lune plus forte
+    const moonLight = new THREE.DirectionalLight(0x445588, 0.3)
     moonLight.position.set(-20, 30, 10)
     moonLight.castShadow = true
     moonLight.shadow.mapSize.width = 1024
     moonLight.shadow.mapSize.height = 1024
     this.scene.add(moonLight)
 
-    // Lueur d'horizon
-    const hemi = new THREE.HemisphereLight(0xff8844, 0x080820, 0.1)
+    // Lueur d'horizon réduite
+    const hemi = new THREE.HemisphereLight(0xff8844, 0x080820, 0.05)
     this.scene.add(hemi)
   }
 
@@ -113,6 +113,13 @@ export class GameScene {
     this.road.update(delta, this.car.speed)
     this.creatureManager.update(delta, this.car.position)
 
+    // La caméra suit la voiture manuellement (position et rotation)
+    this.camera.position.x = this.car.mesh.position.x
+    this.camera.position.z = this.car.mesh.position.z + 0.5 // Léger décalage avant
+    
+    // Légère rotation de la caméra avec le mouvement latéral
+    this.camera.rotation.z = -this.car.mesh.position.x * 0.02
+
     // Gestion des collisions
     if (this.creatureManager.checkCollision(this.car.mesh)) {
       this.car.hit()
@@ -121,11 +128,9 @@ export class GameScene {
 
     // Effet de secousse de caméra
     if (this.cameraShake > 0) {
-      this.camera.position.x = (Math.random() - 0.5) * 0.1 * this.cameraShake
-      this.camera.position.y = 0.8 + (Math.random() - 0.5) * 0.1 * this.cameraShake
+      this.camera.position.x += (Math.random() - 0.5) * 0.1 * this.cameraShake
+      this.camera.position.y += (Math.random() - 0.5) * 0.05 * this.cameraShake
       this.cameraShake -= delta * 2
-    } else {
-      this.camera.position.set(0, 0.8, 0.3)
     }
 
     this.renderer.render(this.scene, this.camera)

@@ -29,71 +29,67 @@ export class Car {
   }
 
   private createCar(): void {
-    // Intérieur de la voiture (première personne)
+    // Intérieur de la voiture (première personne) - ULTRA MINIMALISTE
     const cabinGroup = new THREE.Group()
     
-    // Tableau de bord
-    const dashboardGeometry = new THREE.BoxGeometry(2.5, 0.8, 0.3)
+    // Tableau de bord (très discret)
+    const dashboardGeometry = new THREE.BoxGeometry(1.5, 0.2, 0.05)
     const dashboardMaterial = new THREE.MeshStandardMaterial({ 
-      color: 0x2a2a2a, 
+      color: 0x0a0a0a, 
       metalness: 0.1, 
-      roughness: 0.8 
+      roughness: 0.9 
     })
     const dashboard = new THREE.Mesh(dashboardGeometry, dashboardMaterial)
-    dashboard.position.set(0, 0.4, -0.5)
+    dashboard.position.set(0, 0.15, -0.3) // Très bas
     dashboard.name = 'dashboard'
     cabinGroup.add(dashboard)
 
-    // Volant
-    const steeringWheelGeometry = new THREE.TorusGeometry(0.3, 0.05, 16, 32)
+    // Volant seulement (élément principal visible)
+    const steeringWheelGeometry = new THREE.TorusGeometry(0.15, 0.02, 8, 16)
     const steeringWheelMaterial = new THREE.MeshStandardMaterial({ 
-      color: 0x333333, 
-      metalness: 0.3, 
-      roughness: 0.4 
+      color: 0x222222, 
+      metalness: 0.4, 
+      roughness: 0.3 
     })
     this.steeringWheel = new THREE.Mesh(steeringWheelGeometry, steeringWheelMaterial)
     this.steeringWheel.rotation.x = Math.PI / 2
-    this.steeringWheel.position.set(0.4, 0.7, -0.3)
+    this.steeringWheel.position.set(0.25, 0.35, -0.25) // Position latérale basse
     cabinGroup.add(this.steeringWheel)
 
-    // Cadran de vitesse
-    const speedometerGeometry = new THREE.CylinderGeometry(0.15, 0.15, 0.02, 32)
-    const speedometerMaterial = new THREE.MeshStandardMaterial({ 
-      color: 0x001122,
-      emissive: 0x0044ff,
-      emissiveIntensity: 0.3
-    })
-    const speedometer = new THREE.Mesh(speedometerGeometry, speedometerMaterial)
-    speedometer.rotation.x = Math.PI / 2
-    speedometer.position.set(-0.3, 0.6, -0.4)
-    cabinGroup.add(speedometer)
-
-    // Pare-brise (verre)
-    const windshieldGeometry = new THREE.PlaneGeometry(2.2, 0.8)
-    const windshieldMaterial = new THREE.MeshStandardMaterial({
-      color: 0x88aaff,
-      transparent: true,
-      opacity: 0.1,
-      metalness: 0.9,
-      roughness: 0.1
-    })
-    const windshield = new THREE.Mesh(windshieldGeometry, windshieldMaterial)
-    windshield.position.set(0, 0.9, -0.6)
-    windshield.rotation.x = Math.PI * 0.1
-    cabinGroup.add(windshield)
+    // SUPPRIMÉ: Pare-brise, capot, et autres éléments qui créent des filtres
+    // SUPPRIMÉ: Cadran de vitesse qui peut obstruer
 
     this.mesh.add(cabinGroup)
 
-    // Corps de la voiture (extérieur, moins visible en première personne)
+    // Corps de la voiture (extérieur - BIEN EN DESSOUS de la caméra)
     const bodyMaterial = new THREE.MeshStandardMaterial({ 
       color: 0x3366ff, 
       metalness: 0.3, 
       roughness: 0.4 
     })
     const body = new THREE.Mesh(new THREE.BoxGeometry(1.8, 0.5, 4), bodyMaterial)
-    body.position.y = -0.5
+    body.position.y = -2.0 // TRÈS BAS pour être sûr qu'il soit hors de vue
     body.castShadow = true
     this.mesh.add(body)
+
+    // Roues (également très basses)
+    const wheelMaterial = new THREE.MeshStandardMaterial({ color: 0x111111 })
+    const wheelGeometry = new THREE.CylinderGeometry(0.25, 0.25, 0.3, 12)
+    
+    const wheelPositions = [
+      [-0.7, -1.8, 0.8],  // Y position très basse
+      [0.7, -1.8, 0.8],
+      [-0.7, -1.8, -0.8],
+      [0.7, -1.8, -0.8]
+    ]
+    
+    wheelPositions.forEach(pos => {
+      const wheel = new THREE.Mesh(wheelGeometry, wheelMaterial)
+      wheel.rotation.z = Math.PI / 2
+      wheel.position.set(pos[0], pos[1], pos[2])
+      wheel.castShadow = true
+      this.mesh.add(wheel)
+    })
 
     // Position initiale
     this.mesh.position.set(0, 0, 0)
@@ -106,13 +102,14 @@ export class Car {
 
   public hit(): void {
     this.speed = Math.max(0, this.speed - 0.1)
-    // Flash rouge dans la cabine
+    // Flash rouge très subtil
     this.mesh.traverse((child) => {
       if ((child as THREE.Mesh).material && child.name === 'dashboard') {
         const m = (child as THREE.Mesh).material as any
         if (m.color) {
-          m.color.set(0xff2222)
-          setTimeout(() => m.color.set(0x2a2a2a), 200)
+          const originalColor = m.color.clone()
+          m.color.set(0x442222)
+          setTimeout(() => m.color.copy(originalColor), 200)
         }
       }
     })
@@ -161,7 +158,7 @@ export class Car {
     this.mesh.position.x += (this.targetX - this.mesh.position.x) * 0.1
 
     // Animation du volant
-    const targetWheelRotation = (this.targetX - this.mesh.position.x) * 2
+    const targetWheelRotation = (this.targetX - this.mesh.position.x) * 3
     this.wheelRotation += (targetWheelRotation - this.wheelRotation) * 0.1
     if (this.steeringWheel) {
       this.steeringWheel.rotation.z = this.wheelRotation

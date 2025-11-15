@@ -89,7 +89,30 @@ export class Road {
   }
 
   private addNaturalElements(zPosition: number): void {
-    // ... (le reste reste identique)
+    const grassMaterial = new THREE.MeshStandardMaterial({ 
+      color: 0x336633,
+      side: THREE.DoubleSide,
+      roughness: 0.9
+    })
+
+    // Herbe entre la route et le sol
+    const grassWidth = 3
+    const leftGrass = new THREE.Mesh(
+      new THREE.PlaneGeometry(grassWidth, this.segmentLength),
+      grassMaterial
+    )
+    leftGrass.rotation.x = -Math.PI / 2
+    leftGrass.position.set(-this.roadWidth/2 - grassWidth/2, 0.01, zPosition)
+
+    const rightGrass = new THREE.Mesh(
+      new THREE.PlaneGeometry(grassWidth, this.segmentLength),
+      grassMaterial
+    )
+    rightGrass.rotation.x = -Math.PI / 2
+    rightGrass.position.set(this.roadWidth/2 + grassWidth/2, 0.01, zPosition)
+
+    this.mesh.add(leftGrass)
+    this.mesh.add(rightGrass)
   }
 
   public update(delta: number, carSpeed: number): void {

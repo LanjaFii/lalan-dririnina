@@ -6,7 +6,8 @@ class Game {
   
   constructor() {
     this.scene = new GameScene()
-    this.animate()
+    // Attendre que la scène soit prête (chargement asynchrone des modèles)
+    this.scene.ready.then(() => this.animate())
   }
 
   private animate = (): void => {

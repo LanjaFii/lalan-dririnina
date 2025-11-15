@@ -7,6 +7,8 @@ export class GameScene {
   public scene: THREE.Scene
   public camera: THREE.PerspectiveCamera
   public renderer: THREE.WebGLRenderer
+  public ready: Promise<void>
+  private _readyResolve: (() => void) | null = null
   private car: Car
   private road: Road
   private creatureManager: CreatureManager
@@ -21,7 +23,8 @@ export class GameScene {
     this.road = null as any
     this.creatureManager = null as any
     this.clock = new THREE.Clock()
-    
+    this.ready = new Promise((resolve) => { this._readyResolve = resolve })
+
     this.init()
   }
 
@@ -46,6 +49,8 @@ export class GameScene {
     this.setupEvents()
 
     console.log('✅ Jeu initialisé')
+    // Signaler que la scène est prête (models et objets créés)
+    this._readyResolve && this._readyResolve()
   }
 
   private async setupGameObjects(): Promise<void> {

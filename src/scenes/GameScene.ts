@@ -69,14 +69,14 @@ export class GameScene {
     const fireflyCount = 15 // Pas beaucoup de lucioles comme demandé
     
     for (let i = 0; i < fireflyCount; i++) {
-      this.createFirefly(i)
+      this.createFirefly()
     }
     
     this.scene.add(this.fireflyGroup)
     console.log('🪰 Lucioles créées')
   }
 
-  private createFirefly(index: number): void {
+  private createFirefly(): void {
     // Créer une sphère très petite pour la luciole
     const geometry = new THREE.SphereGeometry(0.08, 8, 6)
     const material = new THREE.MeshBasicMaterial({
@@ -135,7 +135,6 @@ export class GameScene {
   }
 
   private updateFireflies(delta: number): void {
-    const time = Date.now() * 0.001
     
     for (const firefly of this.fireflies) {
       // Mouvement vers la cible

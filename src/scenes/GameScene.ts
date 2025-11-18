@@ -2,7 +2,6 @@
 import * as THREE from 'three'
 import { Car } from '../objects/Car'
 import { Road } from '../objects/Road'
-// removed CreatureManager import (on veut pas de créatures)
 
 export class GameScene {
   public scene: THREE.Scene
@@ -12,15 +11,18 @@ export class GameScene {
   private _readyResolve: (() => void) | null = null
   private car: Car
   private road: Road
-  // private creatureManager: CreatureManager  <-- removed
   private clock: THREE.Clock
   private cameraShake: number = 0
+  private motorcycleLight?: THREE.SpotLight
 
   constructor() {
     this.scene = new THREE.Scene()
     // increase far plane A LOT so decor never disappear
     this.camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 4000)
-    this.renderer = new THREE.WebGLRenderer({ antialias: true })
+    this.renderer = new THREE.WebGLRenderer({ 
+      antialias: true,
+      powerPreference: "high-performance" // Optimisation performance
+    })
     this.car = null as any
     this.road = null as any
     this.clock = new THREE.Clock()
@@ -37,11 +39,12 @@ export class GameScene {
 
     this.renderer.setSize(window.innerWidth, window.innerHeight)
     this.renderer.setClearColor(0x000011)
-    // désactiver shadows full cost si tu veux perf (les phares peuvent rester)
+    // Désactiver complètement le shadow map pour éviter le clignotement
     this.renderer.shadowMap.enabled = false
+    this.renderer.shadowMap.type = THREE.PCFSoftShadowMap
     document.getElementById('app')!.appendChild(this.renderer.domElement)
 
-    this.setupMinimalLighting()
+    this.setupOptimizedLighting()
     await this.setupGameObjects()
     this.setupEvents()
     console.log('✅ Jeu initialisé')
@@ -60,9 +63,7 @@ export class GameScene {
     console.log('✅ Objets ajoutés à la scène')
 
     this.setupCamera()
-
-    // plus de CreatureManager (tu as demandé pas de créatures)
-    // this.creatureManager = new CreatureManager(this.scene, this.road.roadWidth)
+    this.setupMotorcycleLight()
   }
 
   private setupCamera(): void {
@@ -71,14 +72,37 @@ export class GameScene {
     this.camera.updateProjectionMatrix()
   }
 
-  private setupMinimalLighting(): void {
-    const ambientLight = new THREE.AmbientLight(0x334455, 0.08)
+  private setupOptimizedLighting(): void {
+    // Ambient light légèrement augmenté pour mieux voir la route marron
+    const ambientLight = new THREE.AmbientLight(0x445566, 0.12) // Légèrement plus fort
     this.scene.add(ambientLight)
 
-    const moonLight = new THREE.DirectionalLight(0x445588, 0.08)
+    const moonLight = new THREE.DirectionalLight(0x445588, 0.1) // Légèrement plus fort
     moonLight.position.set(-20, 30, 10)
     moonLight.castShadow = false
     this.scene.add(moonLight)
+  }
+
+  private setupMotorcycleLight(): void {
+    // Créer un spot light pour les phares de la moto
+    this.motorcycleLight = new THREE.SpotLight(
+      0xffffff, // Couleur blanche
+      0.8, // Intensité
+      50, // Distance
+      Math.PI / 6, // Angle
+      0.5, // Pénumbra
+      1 // Decay
+    )
+    
+    // Positionner le phare plus haut et plus en avant
+    this.motorcycleLight.position.set(0, 2.5, -3) // Plus haut (2.5 au lieu de ~1.2) et plus en avant (-3)
+    this.motorcycleLight.target.position.set(0, 0, -20) // Pointer loin devant
+    
+    this.motorcycleLight.castShadow = false // Désactiver les ombres pour éviter le clignotement
+    
+    // Attacher la lumière à la moto
+    this.car.mesh.add(this.motorcycleLight)
+    this.car.mesh.add(this.motorcycleLight.target)
   }
 
   private setupEvents(): void {
@@ -105,9 +129,7 @@ export class GameScene {
     const delta = this.clock.getDelta()
 
     this.car.update(delta)
-    // now pass car position z so road can recycle decorations properly
     this.road.update(delta, this.car.speed, this.car.mesh.position.z)
-    // removed creature update call
 
     // Caméra suit la moto
     this.camera.position.x = this.car.mesh.position.x
@@ -115,6 +137,12 @@ export class GameScene {
     this.camera.position.y = 2.7
 
     this.camera.rotation.z = -this.car.mesh.position.x * 0.008
+
+    // Mettre à jour la position de la lumière des phares
+    if (this.motorcycleLight) {
+      // La lumière suit déjà la moto car elle est attachée au mesh
+      // On peut ajuster dynamiquement l'intensité si nécessaire
+    }
 
     // collisions removed (no creatures)
     if (this.cameraShake > 0) {

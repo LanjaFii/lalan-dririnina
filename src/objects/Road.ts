@@ -28,13 +28,13 @@ export class Road {
       this.treeModel.traverse((c) => {
         if (c instanceof THREE.Mesh) {
           c.castShadow = false
-          c.receiveShadow = true
+          c.receiveShadow = false // Désactiver receiveShadow pour éviter le clignotement
         }
       })
       this.grassModel.traverse((c) => {
         if (c instanceof THREE.Mesh) {
           c.castShadow = false
-          c.receiveShadow = true
+          c.receiveShadow = false // Désactiver receiveShadow pour éviter le clignotement
         }
       })
 
@@ -51,12 +51,17 @@ export class Road {
 
   private createFallbackModels(): void {
     const grassGroup = new THREE.Group()
-    const gmat = new THREE.MeshStandardMaterial({ color: 0x336633, side: THREE.DoubleSide })
+    const gmat = new THREE.MeshStandardMaterial({ 
+      color: 0x336633, 
+      side: THREE.DoubleSide,
+      roughness: 1.0 // Augmenter roughness pour réduire les reflets
+    })
     for (let i = 0; i < 4; i++) {
       const blade = new THREE.Mesh(new THREE.PlaneGeometry(0.35, 1.4), gmat)
       blade.rotation.x = Math.PI / 2
       blade.position.set((Math.random() - 0.5) * 0.6, 0.7, (Math.random() - 0.5) * 0.6)
       blade.castShadow = false
+      blade.receiveShadow = false
       grassGroup.add(blade)
     }
     this.grassModel = grassGroup
@@ -70,33 +75,35 @@ export class Road {
   }
 
   private createRoadSegment(zPosition: number): void {
+    // SOL (terre) - couleur marron foncé
     const ground = new THREE.Mesh(
       new THREE.PlaneGeometry(this.groundWidth, this.segmentLength),
       new THREE.MeshStandardMaterial({
-        color: 0x5D4037,
+        color: 0x5D4037, // Marron terre
         side: THREE.DoubleSide,
-        roughness: 1.0,
-        metalness: 0.0
+        roughness: 1.0, // Surface très mate
+        metalness: 0.0 // Pas métallique
       })
     )
     ground.rotation.x = -Math.PI / 2
     ground.position.z = zPosition
-    ground.receiveShadow = false
+    ground.receiveShadow = false // IMPORTANT: désactiver receiveShadow
     ground.userData = { type: 'segment', subtype: 'ground' }
     this.mesh.add(ground)
 
+    // ROUTE - MAINTENANT MARRON COMME LE SOL
     const road = new THREE.Mesh(
       new THREE.PlaneGeometry(this.roadWidth, this.segmentLength),
       new THREE.MeshStandardMaterial({
-        color: 0x2b2b2b,
+        color: 0x6B4423, // Marron route - semblable aux côtés
         side: THREE.DoubleSide,
-        roughness: 0.85,
-        metalness: 0.05
+        roughness: 0.9, // Légèrement moins rugueux que le sol
+        metalness: 0.0 // Pas métallique
       })
     )
     road.rotation.x = -Math.PI / 2
     road.position.z = zPosition
-    road.receiveShadow = false
+    road.receiveShadow = false // IMPORTANT: désactiver receiveShadow
     road.userData = { type: 'segment', subtype: 'road' }
     this.mesh.add(road)
 
@@ -122,6 +129,12 @@ export class Road {
         tree.position.set(side * offsetFromRoad + (Math.random() * 3 - 1.5), 0, z + Math.random() * 3 - 1.5)
         tree.rotation.y = Math.random() * Math.PI * 2
         tree.scale.setScalar(2.0 + Math.random() * 1.2)
+        tree.traverse((c) => { 
+          if (c instanceof THREE.Mesh) {
+            c.castShadow = false
+            c.receiveShadow = false // Désactiver receiveShadow
+          }
+        })
         tree.userData = { decoration: true, subtype: 'tree' }
         this.mesh.add(tree)
       }
@@ -145,6 +158,12 @@ export class Road {
         grass.position.set(xOffset, 0, z + Math.random() * 2 - 1)
         grass.rotation.y = Math.random() * Math.PI
         grass.scale.setScalar(2.5 + Math.random() * 1.1)
+        grass.traverse((c) => { 
+          if (c instanceof THREE.Mesh) {
+            c.castShadow = false
+            c.receiveShadow = false // Désactiver receiveShadow
+          }
+        })
         grass.userData = { decoration: true, subtype: 'grass' }
         this.mesh.add(grass)
       }
@@ -155,12 +174,17 @@ export class Road {
   }
 
   private addNaturalElements(zPosition: number): void {
-    // inchangé
-    const dirtMaterial = new THREE.MeshStandardMaterial({ color: 0x6B4423 })
+    // Bandes de terre sur les côtés de la route
+    const dirtMaterial = new THREE.MeshStandardMaterial({ 
+      color: 0x6B4423,
+      roughness: 1.0,
+      metalness: 0.0
+    })
     for (const side of [-1, 1]) {
       const dirt = new THREE.Mesh(new THREE.PlaneGeometry(2, this.segmentLength), dirtMaterial)
       dirt.rotation.x = -Math.PI / 2
       dirt.position.set(side * (this.roadWidth/2 + 1), 0.01, zPosition)
+      dirt.receiveShadow = false // Désactiver receiveShadow
       dirt.userData = { decoration: true, subtype: 'dirt' }
       this.mesh.add(dirt)
     }
@@ -171,7 +195,11 @@ export class Road {
     for (let i = 0; i < 6; i++) {
       const rock = new THREE.Mesh(
         new THREE.DodecahedronGeometry(0.25 + Math.random() * 0.35),
-        new THREE.MeshStandardMaterial({ color: 0x666666, roughness: 0.9 })
+        new THREE.MeshStandardMaterial({ 
+          color: 0x666666, 
+          roughness: 0.9,
+          metalness: 0.0
+        })
       )
       const side = Math.random() > 0.5 ? 1 : -1
       rock.position.set(
@@ -179,6 +207,8 @@ export class Road {
         0.25,
         zPosition - this.segmentLength/2 + Math.random() * this.segmentLength
       )
+      rock.castShadow = false
+      rock.receiveShadow = false // Désactiver receiveShadow
       rock.userData = { decoration: true, subtype: 'rock' }
       this.mesh.add(rock)
     }

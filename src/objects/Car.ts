@@ -270,7 +270,7 @@ export class Car {
     }
 
     // INCLINAISON DE LA MOTO
-    const tiltAmount = -(this.targetX - this.mesh.position.x) * 0.12
+    const tiltAmount = -(this.targetX - this.mesh.position.x) * 0.08
     this.currentTilt += (tiltAmount - this.currentTilt) * 0.15
     this.tiltPivot.rotation.z = this.currentTilt
 

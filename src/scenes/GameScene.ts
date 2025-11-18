@@ -1,7 +1,8 @@
+// E:\Projets\lalan-dririnina\src\scenes\GameScene.ts
 import * as THREE from 'three'
 import { Car } from '../objects/Car'
 import { Road } from '../objects/Road'
-import { CreatureManager } from '../objects/Creature'
+// removed CreatureManager import (on veut pas de créatures)
 
 export class GameScene {
   public scene: THREE.Scene
@@ -11,17 +12,17 @@ export class GameScene {
   private _readyResolve: (() => void) | null = null
   private car: Car
   private road: Road
-  private creatureManager: CreatureManager
+  // private creatureManager: CreatureManager  <-- removed
   private clock: THREE.Clock
   private cameraShake: number = 0
 
   constructor() {
     this.scene = new THREE.Scene()
-    this.camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000)
+    // increase far plane A LOT so decor never disappear
+    this.camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 4000)
     this.renderer = new THREE.WebGLRenderer({ antialias: true })
     this.car = null as any
     this.road = null as any
-    this.creatureManager = null as any
     this.clock = new THREE.Clock()
     this.ready = new Promise((resolve) => { this._readyResolve = resolve })
 
@@ -30,66 +31,54 @@ export class GameScene {
 
   private async init(): Promise<void> {
     console.log('🎮 Initialisation du jeu...')
-    
-    // Scene - brouillard réduit pour mieux voir
-    this.scene.fog = new THREE.Fog(0x0b0a12, 30, 250)
+    // Fog étendu (loin)
+    this.scene.fog = new THREE.Fog(0x0b0a12, 30, 3000)
     this.scene.background = new THREE.Color(0x0b1020)
 
-    // Renderer
     this.renderer.setSize(window.innerWidth, window.innerHeight)
     this.renderer.setClearColor(0x000011)
-    this.renderer.shadowMap.enabled = true
-    this.renderer.shadowMap.type = THREE.PCFSoftShadowMap
+    // désactiver shadows full cost si tu veux perf (les phares peuvent rester)
+    this.renderer.shadowMap.enabled = false
     document.getElementById('app')!.appendChild(this.renderer.domElement)
 
-    // ÉCLAIRAGE AMBIANT TRES FAIBLE pour laisser place aux phares
     this.setupMinimalLighting()
-    
     await this.setupGameObjects()
     this.setupEvents()
-
     console.log('✅ Jeu initialisé')
-    // Signaler que la scène est prête (models et objets créés)
     this._readyResolve && this._readyResolve()
   }
 
   private async setupGameObjects(): Promise<void> {
-    console.log('🚗 Création de la moto...')
     this.car = new Car()
-    
-    console.log('🛣️ Création de la route...')
     this.road = new Road()
-    
-    await new Promise(resolve => setTimeout(resolve, 1000))
-    
+
+    // léger delay pour s'assurer que la road a créé ses segments (si async)
+    await new Promise(resolve => setTimeout(resolve, 600))
+
     this.scene.add(this.road.mesh)
     this.scene.add(this.car.mesh)
     console.log('✅ Objets ajoutés à la scène')
 
-    // CAMÉRA
     this.setupCamera()
 
-    this.creatureManager = new CreatureManager(this.scene, this.road.roadWidth)
-    console.log('👹 CreatureManager créé')
+    // plus de CreatureManager (tu as demandé pas de créatures)
+    // this.creatureManager = new CreatureManager(this.scene, this.road.roadWidth)
   }
 
   private setupCamera(): void {
     this.camera.position.set(0, 1.2, 0)
     this.camera.rotation.x = -0.15
+    this.camera.updateProjectionMatrix()
   }
 
   private setupMinimalLighting(): void {
-    // ÉCLAIRAGE AMBIANT MINIMAL - juste assez pour voir les contours
-    const ambientLight = new THREE.AmbientLight(0x334455, 0.08) // Très faible
+    const ambientLight = new THREE.AmbientLight(0x334455, 0.08)
     this.scene.add(ambientLight)
 
-    // Lune très discrète
-    const moonLight = new THREE.DirectionalLight(0x445588, 0.1) // Très faible
+    const moonLight = new THREE.DirectionalLight(0x445588, 0.08)
     moonLight.position.set(-20, 30, 10)
-    moonLight.castShadow = false // Pas d'ombre de la lune
+    moonLight.castShadow = false
     this.scene.add(moonLight)
-
-    console.log('💡 Éclairage ambiant minimal configuré')
   }
 
   private setupEvents(): void {
@@ -114,26 +103,20 @@ export class GameScene {
 
   public update(): void {
     const delta = this.clock.getDelta()
-    
+
     this.car.update(delta)
-    this.road.update(delta, this.car.speed)
-    this.creatureManager.update(delta, this.car.position)
+    // now pass car position z so road can recycle decorations properly
+    this.road.update(delta, this.car.speed, this.car.mesh.position.z)
+    // removed creature update call
 
     // Caméra suit la moto
     this.camera.position.x = this.car.mesh.position.x
     this.camera.position.z = this.car.mesh.position.z + 1.2
     this.camera.position.y = 2.7
 
-    // Légère rotation de caméra dans les virages
     this.camera.rotation.z = -this.car.mesh.position.x * 0.008
 
-    // Collisions
-    if (this.creatureManager.checkCollision(this.car.mesh)) {
-      this.car.hit()
-      this.cameraShake = 1.0
-    }
-
-    // Secousse de caméra
+    // collisions removed (no creatures)
     if (this.cameraShake > 0) {
       this.camera.position.x += (Math.random() - 0.5) * 0.1 * this.cameraShake
       this.camera.position.y += (Math.random() - 0.5) * 0.05 * this.cameraShake

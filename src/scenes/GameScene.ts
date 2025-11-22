@@ -1,7 +1,7 @@
-// E:\Projets\lalan-dririnina\src\scenes\GameScene.ts
 import * as THREE from 'three'
 import { Car } from '../objects/Car'
 import { Road } from '../objects/Road'
+import { TouchControls } from '../utils/TouchControls'
 
 interface Firefly {
   mesh: THREE.Mesh
@@ -24,6 +24,8 @@ export class GameScene {
   private motorcycleLight?: THREE.SpotLight
   private fireflies: Firefly[] = []
   private fireflyGroup: THREE.Group
+  private touchControls: TouchControls
+  private cameraVibration: { intensity: number; frequency: number } = { intensity: 0, frequency: 15 }
 
   constructor() {
     this.scene = new THREE.Scene()
@@ -37,6 +39,7 @@ export class GameScene {
     this.road = null as any
     this.clock = new THREE.Clock()
     this.fireflyGroup = new THREE.Group()
+    this.touchControls = new TouchControls()
     this.ready = new Promise((resolve) => { this._readyResolve = resolve })
 
     this.init()
@@ -255,15 +258,34 @@ export class GameScene {
   }
 
   private handleKeyDown(event: KeyboardEvent): void {
-    this.car.handleInput(event.key, true)
+    // Support ZQSD au lieu de WASD
+    let key = event.key.toLowerCase()
+    if (key === 'z') key = 'arrowup'
+    if (key === 'q') key = 'arrowleft'
+    if (key === 's') key = 'arrowdown'
+    if (key === 'd') key = 'arrowright'
+    
+    this.car.handleInput(key, true)
   }
 
   private handleKeyUp(event: KeyboardEvent): void {
-    this.car.handleInput(event.key, false)
+    // Support ZQSD au lieu de WASD
+    let key = event.key.toLowerCase()
+    if (key === 'z') key = 'arrowup'
+    if (key === 'q') key = 'arrowleft'
+    if (key === 's') key = 'arrowdown'
+    if (key === 'd') key = 'arrowright'
+    
+    this.car.handleInput(key, false)
   }
 
   public update(): void {
     const delta = this.clock.getDelta()
+
+    // Mettre à jour les contrôles tactiles si activés
+    if (this.touchControls.isEnabled()) {
+      this.touchControls.updateCarInput(this.car)
+    }
 
     this.car.update(delta)
     this.road.update(delta, this.car.speed, this.car.mesh.position.z)
@@ -271,12 +293,11 @@ export class GameScene {
     // Mettre à jour les lucioles
     this.updateFireflies(delta)
 
-    // Caméra suit la moto
-    this.camera.position.x = this.car.mesh.position.x
-    this.camera.position.z = this.car.mesh.position.z + 1.2
-    this.camera.position.y = 2.7
+    // Vibration de la caméra proportionnelle à la vitesse
+    this.updateCameraVibration()
 
-    this.camera.rotation.z = -this.car.mesh.position.x * 0.008
+    // Caméra suit la moto avec vibration
+    this.updateCamera()
 
     // Mettre à jour la position de la lumière des phares
     if (this.motorcycleLight) {
@@ -291,5 +312,42 @@ export class GameScene {
     }
 
     this.renderer.render(this.scene, this.camera)
+  }
+
+  private updateCameraVibration(): void {
+    // Intensité de vibration proportionnelle à la vitesse
+    const targetIntensity = this.car.speed * 0.8
+    this.cameraVibration.intensity += (targetIntensity - this.cameraVibration.intensity) * 0.1
+    
+    // Fréquence plus élevée à haute vitesse
+    this.cameraVibration.frequency = 15 + this.car.speed * 10
+  }
+
+  private updateCamera(): void {
+    const baseX = this.car.mesh.position.x
+    const baseZ = this.car.mesh.position.z + 1.2
+    const baseY = 2.7
+
+    // Vibration de la caméra
+    if (this.cameraVibration.intensity > 0.01) {
+      const time = Date.now() * 0.001
+      const vibX = Math.sin(time * this.cameraVibration.frequency) * this.cameraVibration.intensity * 0.01
+      const vibY = Math.cos(time * this.cameraVibration.frequency * 1.3) * this.cameraVibration.intensity * 0.008
+      const vibZ = Math.sin(time * this.cameraVibration.frequency * 0.7) * this.cameraVibration.intensity * 0.005
+
+      this.camera.position.x = baseX + vibX
+      this.camera.position.y = baseY + vibY
+      this.camera.position.z = baseZ + vibZ
+    } else {
+      this.camera.position.x = baseX
+      this.camera.position.y = baseY
+      this.camera.position.z = baseZ
+    }
+
+    this.camera.rotation.z = -this.car.mesh.position.x * 0.008
+
+    // Légère inclinaison de la caméra dans les virages
+    const tilt = -this.car.mesh.position.x * 0.002
+    this.camera.rotation.z += tilt
   }
 }

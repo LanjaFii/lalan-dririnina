@@ -10,8 +10,6 @@ export class Car {
   public headlights!: THREE.SpotLight
 
   private maxSpeed: number
-  private acceleration: number
-  private deceleration: number
   private targetX: number = 0
   private laneWidth: number = 4
   private roadWidth: number = 16
@@ -23,13 +21,32 @@ export class Car {
   private headlightPivot: THREE.Group = new THREE.Group() // Pour les phares (indépendant)
   private currentTilt: number = 0
 
+  // Nouveaux paramètres pour le comportement réaliste
+  private currentAcceleration: number = 0
+  private accelerationRate: number = 0.0005
+  private decelerationRate: number = 0.002
+  private engineBrakeRate: number = 0.001
+  private maxAcceleration: number = 0.001
+  private isAccelerating: boolean = false
+  private isBraking: boolean = false
+
+  // Vibration - PARAMÈTRES AUGMENTÉS
+  private vibrationIntensity: number = 0
+  private vibrationFrequency: number = 25 // Fréquence augmentée
+  private engineVibration: number = 0
+  private roadVibration: number = 0
+
+  // Feux de freinage
+  private brakeLight?: THREE.PointLight
+  private brakeLightIntensity: number = 0
+
   constructor() {
     this.mesh = new THREE.Group()
     this.speed = 0
     this.position = new THREE.Vector3(0, 0, 0)
-    this.maxSpeed = 0.8
-    this.acceleration = 0.001
-    this.deceleration = 0.002
+    
+    // Paramètres ajustés pour une moto réaliste
+    this.maxSpeed = 0.6
     this.laneWidth = this.roadWidth / 4
 
     // Ajouter les pivots à la mesh principale
@@ -70,6 +87,7 @@ export class Car {
 
       // CONFIGURER LES PHARES APRÈS AVOIR LA MOTO
       this.setupHeadlights()
+      this.setupBrakeLight()
 
       this.createFirstPersonView()
 
@@ -132,6 +150,20 @@ export class Car {
     this.headlightPivot.add(headlightGroup)
     
     console.log('💡 Phares configurés - position relative à la moto')
+  }
+
+  private setupBrakeLight(): void {
+    console.log('🔴 Configuration du feu de freinage...')
+    
+    // Créer un feu de freinage rouge à l'arrière de la moto
+    this.brakeLight = new THREE.PointLight(0xff0000, 0, 8) // Intensité initiale à 0
+    this.brakeLight.position.set(0, 0.5, -1.5) // Arrière de la moto
+    this.brakeLight.castShadow = false
+    
+    // Ajouter le feu de freinage à la moto
+    this.tiltPivot.add(this.brakeLight)
+    
+    console.log('🔴 Feu de freinage configuré')
   }
 
   private createFirstPersonView(): void {
@@ -201,6 +233,7 @@ export class Car {
     
     // Configurer les phares après la moto de secours
     this.setupHeadlights()
+    this.setupBrakeLight()
   }
 
   private updateLanePosition(): void {
@@ -223,6 +256,7 @@ export class Car {
     switch (key.toLowerCase()) {
       case 'arrowleft':
       case 'a':
+      case 'q': // Ajout de Q pour ZQSD
         if (isPressed && this.currentLane > 0) {
           this.currentLane--
           this.updateLanePosition()
@@ -239,25 +273,69 @@ export class Car {
 
       case 'arrowup':
       case 'w':
-        if (isPressed) {
-          this.speed = Math.min(this.speed + this.acceleration, this.maxSpeed)
+      case 'z': // Ajout de Z pour ZQSD
+        this.isAccelerating = isPressed
+        if (!isPressed && !this.isBraking) {
+          // Frein moteur quand on relève l'accélérateur et qu'on ne freine pas activement
+          this.currentAcceleration = -this.engineBrakeRate
         }
         break
 
       case 'arrowdown':
       case 's':
+        this.isBraking = isPressed
         if (isPressed) {
-          this.speed = Math.max(this.speed - this.deceleration * 3, 0)
+          // Freinage actif - plus fort que le frein moteur
+          this.currentAcceleration = -this.decelerationRate * 3
+        } else {
+          // Retour au comportement normal quand on relâche le frein
+          if (this.isAccelerating) {
+            this.currentAcceleration = this.accelerationRate
+          } else {
+            this.currentAcceleration = -this.engineBrakeRate
+          }
         }
         break
     }
   }
 
   public update(delta: number): void {
-    this.acceleration += 0.000002
-    this.maxSpeed += 0.00002
+    // Augmentation progressive de la difficulté
+    this.accelerationRate += 0.0000002
+    this.maxSpeed += 0.000002
 
-    this.speed = Math.max(this.speed - this.deceleration * 0.03, 0)
+    // Gestion réaliste de l'accélération
+    if (this.isAccelerating && !this.isBraking) {
+      // Augmentation progressive de l'accélération
+      this.currentAcceleration = Math.min(
+        this.currentAcceleration + this.accelerationRate * delta * 60,
+        this.maxAcceleration
+      )
+    } else if (this.isBraking) {
+      // Freinage actif - décélération forte
+      this.currentAcceleration = Math.max(
+        this.currentAcceleration - this.decelerationRate * delta * 60 * 2,
+        -this.decelerationRate * 4
+      )
+    } else {
+      // Décélération progressive (frein moteur) quand on n'accélère pas et ne freine pas
+      this.currentAcceleration = Math.max(
+        this.currentAcceleration - this.decelerationRate * delta * 60,
+        -this.engineBrakeRate
+      )
+    }
+
+    // Application de l'accélération à la vitesse
+    this.speed += this.currentAcceleration * delta * 60
+    
+    // Limites de vitesse
+    this.speed = Math.max(0, Math.min(this.speed, this.maxSpeed))
+
+    // CALCUL DES VIBRATIONS AMÉLIORÉ
+    this.updateVibrations()
+
+    // Gestion du feu de freinage (delta utilisé maintenant)
+    this.updateBrakeLight(delta)
 
     // Déplacement latéral smooth
     this.mesh.position.x += (this.targetX - this.mesh.position.x) * 0.1
@@ -269,18 +347,82 @@ export class Car {
       this.steeringWheel.rotation.z = this.wheelRotation
     }
 
-    // INCLINAISON DE LA MOTO
+    // INCLINAISON DE LA MOTO (séparée des vibrations)
     const tiltAmount = -(this.targetX - this.mesh.position.x) * 0.08
     this.currentTilt += (tiltAmount - this.currentTilt) * 0.15
     this.tiltPivot.rotation.z = this.currentTilt
 
-    // IMPORTANT : Les phares suivent automatiquement la position de la moto
-    // car ils sont dans headlightPivot qui est enfant de mesh
-    // Pas besoin de mise à jour manuelle de position
+    // APPLICATION DES VIBRATIONS AMÉLIORÉES
+    this.applyVibrations()
 
     // Avancer
     this.mesh.position.z -= this.speed * delta * 60
 
     this.position.copy(this.mesh.position)
+  }
+
+  private updateVibrations(): void {
+    // Vibration du moteur - plus intense à basse vitesse et quand on accélère
+    const engineBaseIntensity = this.isAccelerating ? 0.3 : 0.1
+    const engineSpeedFactor = (1 - this.speed / this.maxSpeed) * 0.7 + 0.3 // Plus fort à basse vitesse
+    this.engineVibration = engineBaseIntensity * engineSpeedFactor * this.speed
+
+    // Vibration de la route - proportionnelle à la vitesse
+    this.roadVibration = this.speed * 0.25 // INTENSITÉ AUGMENTÉE (0.15 → 0.25)
+
+    // Vibration totale combinée
+    this.vibrationIntensity = this.engineVibration + this.roadVibration
+    
+    // Fréquence qui augmente avec la vitesse
+    this.vibrationFrequency = 20 + this.speed * 30 // 20-50 Hz selon la vitesse
+  }
+
+  private applyVibrations(): void {
+    if (this.vibrationIntensity > 0) {
+      const time = Date.now() * 0.001
+      
+      // Vibration verticale principale - PLUS INTENSE
+      const verticalVib = Math.sin(time * this.vibrationFrequency) * this.vibrationIntensity
+      const verticalVib2 = Math.cos(time * this.vibrationFrequency * 1.7) * this.vibrationIntensity * 0.6
+      this.mesh.position.y += (verticalVib + verticalVib2) * 0.02 // AMPLITUDE AUGMENTÉE
+      
+      // Vibration latérale subtile
+      const lateralVib = Math.sin(time * this.vibrationFrequency * 0.8) * this.vibrationIntensity * 0.3
+      this.mesh.position.x += lateralVib * 0.01
+      
+      // Vibration de rotation du moteur - PLUS PRONONCÉE
+      const rotationVib = Math.sin(time * this.vibrationFrequency * 2.5) * this.vibrationIntensity
+      const pitchVib = Math.sin(time * this.vibrationFrequency * 1.2) * this.vibrationIntensity * 0.4
+      
+      this.tiltPivot.rotation.x = rotationVib * 0.03 // AMPLITUDE AUGMENTÉE
+      this.tiltPivot.rotation.y = pitchVib * 0.01
+      
+      // Vibration supplémentaire à haute vitesse
+      if (this.speed > this.maxSpeed * 0.7) {
+        const highSpeedVib = Math.sin(time * this.vibrationFrequency * 3) * (this.speed - this.maxSpeed * 0.7) * 0.5
+        this.mesh.position.y += highSpeedVib * 0.015
+      }
+    } else {
+      // Réinitialiser les rotations quand il n'y a pas de vibration
+      this.tiltPivot.rotation.x = 0
+      this.tiltPivot.rotation.y = 0
+    }
+  }
+
+  private updateBrakeLight(delta: number): void {
+    if (!this.brakeLight) return
+
+    // Intensité du feu de freinage basée sur l'état de freinage
+    const targetIntensity = this.isBraking ? 3 : 0
+    // Utilisation de delta pour un lissage temporel correct
+    this.brakeLightIntensity += (targetIntensity - this.brakeLightIntensity) * (delta * 10)
+    
+    // Appliquer l'intensité avec un effet de pulsation subtile pendant le freinage
+    if (this.isBraking) {
+      const pulse = Math.sin(Date.now() * 0.01) * 0.5 + 1.0
+      this.brakeLight.intensity = this.brakeLightIntensity * pulse
+    } else {
+      this.brakeLight.intensity = this.brakeLightIntensity
+    }
   }
 }

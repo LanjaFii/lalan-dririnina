@@ -77,3 +77,62 @@ canvas {
 .blood-overlay.visible {
   opacity: 1;
 }
+
+/* Contrôles tactiles */
+.touch-controls {
+  position: fixed;
+  width: 100%;
+  height: 100%;
+  top: 0;
+  left: 0;
+  pointer-events: none;
+  z-index: 1000;
+}
+
+.touch-container {
+  position: absolute;
+  bottom: 20px;
+  pointer-events: auto;
+}
+
+.touch-container.left {
+  left: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.touch-container.right {
+  right: 20px;
+  display: flex;
+  gap: 10px;
+}
+
+.touch-button {
+  width: 80px;
+  height: 80px;
+  background: rgba(255, 255, 255, 0.2);
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+  color: white;
+  font-weight: bold;
+  backdrop-filter: blur(10px);
+  user-select: none;
+  transition: all 0.1s ease;
+}
+
+.touch-button:active {
+  background: rgba(255, 255, 255, 0.4);
+  transform: scale(0.95);
+}
+
+/* Masquer les contrôles sur desktop par défaut */
+@media (min-width: 768px) {
+  .touch-controls {
+    display: none;
+  }
+}
